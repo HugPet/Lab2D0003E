@@ -9,26 +9,26 @@ int writeReg(int num, int reg, bool shift);
 
 
 bool is_prime(long i); // from lab 1
-
+int pp;
+mutex m = MUTEX_INIT;
 void printAt(long num, int pos) {
-    int pp = pos;
+	lock(&m);
+    pp = pos;
     writeChar( (num % 100) / 10 + '0', pp);
+	volatile int i = 0;
+	for(i;i<1000;i++){}
     pp++;
     writeChar( num % 10 + '0', pp);
+	unlock(&m);
 }
 
 void computePrimes(int pos) {
     long n;
-	unsigned char i;
 
     for(n = 1; ; n++) {
         if (is_prime(n)) {
             printAt(n, pos);
-			i = PINB & 0x80;
-			if (i != 0x80) {
-				yield();
-			}
-        }
+		}
     }
 }
 void LCD_Init(void){
@@ -37,6 +37,8 @@ void LCD_Init(void){
 	LCDFRR = (0<<LCDPS2)|(0<<LCDPS1)|(0<<LCDPS0)|(1<<LCDCD2)|(1<<LCDCD1)|(1<<LCDCD0);
 	LCDCCR = (0<<LCDDC2)|(0<<LCDDC1)|(0<<LCDDC0)|(1<<LCDCC3)|(1<<LCDCC2)|(1<<LCDCC1)|(1<<LCDCC0);
 	LCDCRA = (1<<LCDEN)|(1<<LCDAB)|(0<<LCDIE)|(0<<LCDBL);
+	
+	TCCR1B = (0<<WGM13)|(1<<WGM12)|(0<<WGM11)|(0<<WGM10)|(1<<CS12)|(0<<CS11)|(1<<CS10);
 	
 }
 
