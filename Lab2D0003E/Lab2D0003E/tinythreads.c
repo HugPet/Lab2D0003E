@@ -27,6 +27,7 @@ thread freeQ   = threads;
 thread readyQ  = NULL;
 thread current = &initp;
 
+unsigned char i;
 int initialized = 0;
 
 static void initialize(void) {
@@ -35,13 +36,18 @@ static void initialize(void) {
         threads[i].next = &threads[i+1];
     threads[NTHREADS-1].next = NULL;
 
-	DDRB = (1 << DDB7);
-	PORTB = (1 << PB7);
-	MCUCR = (0 << PUD);
 
-	PCMSK1 = (1 << PCINT15);
-	EIMSK = (1 << PCINT15);
+	DDRB |= (1 << DDB7);
+	PORTB |= (1 << PB7);
+	MCUCR |= (0 << PUD);
 
+
+	EIMSK |= (1<<PCIF1);
+	PCMSK1 |= (1<<PCINT15);
+	TCCR1A |= (1 << COM1A1); 
+	TIMSK1 |= (1<<OCIE1A);
+	
+	OCR1A = 0xC4;
 
     initialized = 1;
 }
@@ -100,19 +106,40 @@ void spawn(void (* function)(int), int arg) {
 }
 
 void yield(void) {
-	enqueue(current, &readyQ);
+	DISABLE();
+	enqueue(current,&readyQ);
 	dispatch(dequeue(&readyQ));
+	ENABLE();
 }
 
 void lock(mutex *m) {
-
+	DISABLE();
+	if(m->locked == 0) m->locked = 1;
+	else {
+		enqueue(current,&m->waitQ);
+		dispatch(dequeue(&readyQ));
+	}
+	ENABLE();
 }
 
-void unlock(mutex *m) {
-
+void unlock(mutex *m) {	
+	DISABLE();
+	if (m->waitQ == NULL){
+		m->locked = 0;
+	} else {
+		enqueue(current,&readyQ);
+		dispatch(dequeue(&m->waitQ));
+	}
+	ENABLE();
 }
 
-ISR(PCINT1_vect) {
+ISR(PCINT1_vect){
+	i = PINB & 0x80;
+	if (i != 0x80) {
+		yield();
+	}
+}
 
-	
+ISR(TIMER1_COMPA_vect){
+	yield();
 }
